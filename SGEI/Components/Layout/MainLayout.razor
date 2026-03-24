@@ -1,0 +1,144 @@
+﻿@inherits LayoutComponentBase
+@using SGEI.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject UserSession Session
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="app-container">
+    <header class="header">
+        <button class="menu-trigger" @onclick="ToggleMenu">
+            <i class="bi bi-list"></i>
+        </button>
+        <span class="brand-name" @onclick='() => Nav.NavigateTo("/", forceLoad: false)'>SGEI Estética</span>
+        <div class="user-status">
+            <AuthorizeView>
+                <Authorized>
+                    <span class="dot-active" title="Conectado"></span>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </header>
+
+    <div class="drawer-overlay @(menuAberto ? "active" : "")" @onclick="ToggleMenu"></div>
+
+    <div class="drawer @(menuAberto ? "active" : "")">
+        <div class="drawer-header">
+            <h5 class="m-0 fw-bold">Navegação</h5>
+            <button class="btn-close-drawer" @onclick="ToggleMenu">✕</button>
+        </div>
+
+        @* Novo container com scroll para os links *@
+        <div class="drawer-body">
+            <nav class="nav-list">
+                <a href="/" @onclick="ToggleMenu"><i class="bi bi-house-heart"></i> Início</a>
+                
+                <AuthorizeView>
+                    <Authorized>
+                        <a href="/agendar" @onclick="ToggleMenu"><i class="bi bi-calendar-check"></i> Agendar</a>
+                        <a href="/meus-agendamentos" @onclick="ToggleMenu"><i class="bi bi-clock-history"></i> Meus Horários</a>
+
+                        <AuthorizeView Roles="Admin" Context="adminContext">
+                            <div class="admin-divider">Gestão</div>
+                            <a href="/admin/dashboard" @onclick="ToggleMenu"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                            <a href="/admin/agenda" @onclick="ToggleMenu"><i class="bi bi-calendar3"></i> Agenda</a>
+                            <a href="/admin/procedimentos" @onclick="ToggleMenu"><i class="bi bi-scissors"></i> Procedimentos</a>
+                            <a href="/admin/configuracoes" @onclick="ToggleMenu"><i class="bi bi-sliders"></i> Configurações</a>
+                        </AuthorizeView>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="mt-4 px-3">
+                            <a href="/login" class="login-link-btn" @onclick="ToggleMenu">Entrar no Sistema</a>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </nav>
+        </div>
+
+        @* Seção de Logout Fixa no Rodapé *@
+        <AuthorizeView>
+            <Authorized>
+                <div class="drawer-footer">
+                    <div class="user-info-box mb-3">
+                        <div class="avatar-mini">@context.User.Identity?.Name?[0]</div>
+                        <div>
+                            <small class="text-muted d-block">Usuário</small>
+                            <span class="fw-bold text-dark">@context.User.Identity?.Name?.Split(' ')[0]</span>
+                        </div>
+                    </div>
+                    <button class="btn-logout w-100" @onclick="Sair">
+                        <i class="bi bi-box-arrow-right"></i> Sair da Conta
+                    </button>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+
+    <main class="main-content container">
+        @Body
+    </main>
+</div>
+
+<style>
+    :root { --primary: #EAA3B5; --bg-body: #F9FAFB; --text-main: #2D3748; }
+    .app-container { font-family: 'Poppins', sans-serif; background: var(--bg-body); min-height: 100vh; color: var(--text-main); }
+    
+    .header { display: flex; align-items: center; padding: 0.8rem 1.5rem; background: white; border-bottom: 1px solid #edf2f7; position: sticky; top: 0; z-index: 100; }
+    .menu-trigger { border: none; background: none; font-size: 1.8rem; color: #4a5568; cursor: pointer; transition: 0.2s; }
+    .brand-name { flex-grow: 1; text-align: center; font-weight: 700; font-size: 1.2rem; color: var(--primary); cursor: pointer; }
+    .dot-active { width: 10px; height: 10px; background: #48BB78; border-radius: 50%; display: inline-block; border: 2px solid white; box-shadow: 0 0 0 1px #48BB78; }
+
+    /* Drawer com Flexbox para fixar o footer */
+    .drawer { 
+        position: fixed; top: 0; left: -300px; width: 300px; height: 100%; 
+        background: white; z-index: 1000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+        display: flex; flex-direction: column; 
+    }
+    .drawer.active { left: 0; }
+    
+    .drawer-header { padding: 1.5rem; border-bottom: 1px solid #f7fafc; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* Área de links com scroll */
+    .drawer-body { flex-grow: 1; overflow-y: auto; padding: 1rem 0; }
+    .drawer-body::-webkit-scrollbar { width: 4px; }
+    .drawer-body::-webkit-scrollbar-thumb { background: #eee; border-radius: 10px; }
+
+    .nav-list { padding: 0 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .nav-list a { 
+        text-decoration: none; color: #4a5568; font-weight: 500; 
+        display: flex; align-items: center; gap: 12px; font-size: 1rem; 
+        padding: 12px 15px; border-radius: 12px; transition: 0.2s;
+    }
+    .nav-list a:hover { background: #fff5f7; color: var(--primary); }
+    
+    .admin-divider { margin: 1.5rem 0 0.5rem 1rem; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: #a0aec0; letter-spacing: 1.5px; }
+
+    /* Rodapé fixo */
+    .drawer-footer { padding: 1.5rem; border-top: 1px solid #f7fafc; background: #fff; }
+    .user-info-box { display: flex; align-items: center; gap: 12px; }
+    .avatar-mini { width: 35px; height: 35px; background: #fdeff2; color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+    .login-link-btn { background: var(--primary); color: white !important; display: flex; padding: 12px; border-radius: 12px; text-decoration: none; font-weight: 600; justify-content: center; }
+    .btn-logout { border: 1px solid #fed7e2; background: #fff5f7; color: #e53e3e; padding: 12px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+    .btn-logout:hover { background: #e53e3e; color: white; }
+
+    .drawer-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.2); backdrop-filter: blur(2px); z-index: 998; opacity: 0; visibility: hidden; transition: 0.3s; }
+    .drawer-overlay.active { opacity: 1; visibility: visible; }
+    .main-content { padding: 2rem 1rem; }
+</style>
+
+@code {
+    private bool menuAberto = false;
+    private void ToggleMenu() => menuAberto = !menuAberto;
+
+    private void Sair()
+    {
+        if (AuthStateProvider is SimpleAuthStateProvider customProvider)
+        {
+            customProvider.MarcarComoDeslogado();
+        }
+        Session.UsuarioLogado = null;
+        menuAberto = false;
+        Nav.NavigateTo("/", true);
+    }
+}

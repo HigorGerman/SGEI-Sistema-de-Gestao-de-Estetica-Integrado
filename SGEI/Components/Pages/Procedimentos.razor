@@ -1,0 +1,45 @@
+@page "/procedimentos"
+@using SGEI.Models
+@using SGEI.Services
+@inject ProcedimentoService Service
+
+<div class="container py-5">
+    <h2 class="text-center title-estetica mb-5">Nossos Serviços</h2>
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        @foreach (var p in listaProcedimentos)
+        {
+            <div class="col">
+                <div class="card h-100 card-procedimento">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold">@p.Nome</h5>
+                        <p class="card-text text-muted">@p.Descricao</p> @* Exibindo a descrição aqui! *@
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="preco-tag">@p.Preco.ToString("C")</span>
+                            <span class="badge bg-light text-dark">@p.DuracaoMinutos min</span>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0 pb-3">
+                        <a href="/agendar" class="btn btn-rosa w-100">Agendar Agora</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .card-procedimento { border-radius: 15px; border: none; box-shadow: 0 5px 15px rgba(234, 163, 181, 0.2); transition: 0.3s; }
+    .card-procedimento:hover { transform: translateY(-5px); }
+    .preco-tag { color: #EAA3B5; font-size: 1.2rem; font-weight: bold; }
+    .btn-rosa { background-color: #EAA3B5; color: white; border-radius: 50px; font-weight: bold; }
+</style>
+
+@code {
+    private List<Procedimento> listaProcedimentos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        listaProcedimentos = await Service.ListarTodosAsync();
+    }
+}

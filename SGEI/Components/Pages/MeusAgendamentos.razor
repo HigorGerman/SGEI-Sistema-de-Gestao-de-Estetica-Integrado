@@ -1,0 +1,118 @@
+@page "/meus-agendamentos"
+@using SGEI.Models
+@using SGEI.Services
+@inject AgendamentoService AgendamentoService
+@inject UserSession Session
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<div class="container py-4">
+    <h3 class="title-estetica text-center mb-4">Meus Agendamentos</h3>
+
+    @if (carregando)
+    {
+        <div class="text-center mt-5">
+            <div class="spinner-border" style="color: #EAA3B5;" role="status"></div>
+            <p class="mt-2 text-muted fw-bold">Buscando seus horários...</p>
+        </div>
+    }
+    else if (!agendamentos.Any())
+    {
+        <div class="alert alert-light text-center shadow-sm p-5" style="border-radius: 20px;">
+            <h5 class="text-muted mb-3">Você ainda não tem horários marcados.</h5>
+            <a href="/agendar" class="btn btn-agendar-link">Fazer um Agendamento</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var ag in agendamentos)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow-sm border-0 h-100" style="border-radius: 20px;">
+                        <div class="card-body p-4">
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="fw-bold mb-0" style="color: #555;">@ag.Procedimento?.Nome</h5>
+                                <span class="badge @ObterClasseStatus(ag.Status) rounded-pill px-3 py-2">
+                                    @ag.Status
+                                </span>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <p class="text-muted mb-1 fw-medium">
+                                    📅 @ag.DataHora.ToString("dd/MM/yyyy")
+                                </p>
+                                <p class="text-muted mb-0 fw-medium">
+                                    ⏰ @ag.DataHora.ToString("HH:mm") 
+                                    <span class="small opacity-75">(Duração: @ag.Procedimento?.DuracaoMinutos min)</span>
+                                </p>
+                            </div>
+
+                            @if (ag.Status == "Pendente" || ag.Status == "Confirmado")
+                            {
+                                <button class="btn btn-outline-danger w-100" style="border-radius: 12px; font-weight: 500;"
+                                        @onclick="() => Cancelar(ag.Id)">
+                                    Cancelar Horário
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .title-estetica { color: #EAA3B5; font-weight: bold; }
+    .btn-agendar-link { 
+        background: #EAA3B5; color: white; border-radius: 50px; 
+        padding: 12px 30px; font-weight: bold; text-decoration: none; transition: 0.3s;
+    }
+    .btn-agendar-link:hover { background: #d892a4; color: white; }
+</style>
+
+@code {
+    private List<Agendamento> agendamentos = new();
+    private bool carregando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.UsuarioLogado == null)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        await CarregarAgendamentos();
+    }
+
+    private async Task CarregarAgendamentos()
+    {
+        carregando = true;
+        // Puxa do banco apenas os agendamentos de quem está logado
+        agendamentos = await AgendamentoService.ListarPorClienteAsync(Session.UsuarioLogado.Id);
+        carregando = false;
+    }
+
+    private async Task Cancelar(int agendamentoId)
+    {
+        var sucesso = await AgendamentoService.CancelarAgendamentoAsync(agendamentoId, Session.UsuarioLogado.Id);
+        if (sucesso)
+        {
+            // Se cancelou com sucesso, recarrega a lista para a tela atualizar
+            await CarregarAgendamentos();
+        }
+    }
+
+    // Método simples para mudar a cor da etiqueta dependendo da situação do agendamento
+    private string ObterClasseStatus(string status) => status switch
+    {
+        "Pendente" => "bg-warning text-dark",
+        "Confirmado" => "bg-success",
+        "Cancelado" => "bg-danger",
+        "Concluído" => "bg-info text-dark",
+        _ => "bg-secondary"
+    };
+}

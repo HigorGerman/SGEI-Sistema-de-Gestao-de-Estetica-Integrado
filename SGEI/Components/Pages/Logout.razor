@@ -1,0 +1,12 @@
+@page "/logout"
+@using SGEI.Services
+@inject UserSession Session
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        Session.Logout();
+        Nav.NavigateTo("/", forceLoad: true);
+    }
+}

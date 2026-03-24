@@ -1,0 +1,152 @@
+@page "/admin/configuracoes"
+@using SGEI.Models
+@using SGEI.Services
+@inject ConfiguracaoService ConfigService
+@inject UserSession Session
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="title-estetica mb-0">Configurações da Clínica</h3>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 card shadow-sm border-0 p-4" style="border-radius: 20px;">
+            
+            @if (carregando)
+            {
+                <div class="text-center p-5">
+                    <div class="spinner-border" style="color: #EAA3B5;" role="status"></div>
+                </div>
+            }
+            else
+            {
+                <form @onsubmit="SalvarConfiguracoes">
+                    <h5 class="fw-bold mb-3" style="color: #555;">Horário de Expediente</h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label class="fw-medium text-muted mb-2">Abertura</label>
+                            <input type="time" class="form-control custom-input" @bind="horaAberturaInput" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="fw-medium text-muted mb-2">Fechamento</label>
+                            <input type="time" class="form-control custom-input" @bind="horaFechamentoInput" required />
+                        </div>
+                    </div>
+
+                    <hr class="mb-4" style="opacity: 0.1;">
+
+                    <h5 class="fw-bold mb-3" style="color: #555;">Dias de Funcionamento</h5>
+                    <div class="d-flex flex-wrap gap-3 mb-4">
+                        @foreach (var dia in diasSelecionados.Keys.ToList())
+                        {
+                            <div class="form-check form-switch bg-light px-4 py-2" style="border-radius: 12px; border: 1px solid #eee;" @key="dia">
+                                <input class="form-check-input mt-1" type="checkbox" role="switch" id="switch_@dia"
+                                       @bind="diasSelecionados[dia]" 
+                                       style="cursor: pointer;"/>
+                                <label class="form-check-label ms-2 fw-medium mt-1" for="switch_@dia" style="cursor: pointer;">
+                                    @dia
+                                </label>
+                            </div>
+                        }
+                    </div>
+
+                    <button type="submit" class="btn-salvar w-100 mt-2">
+                        💾 Salvar Configurações
+                    </button>
+
+                    @if (!string.IsNullOrEmpty(mensagem))
+                    {
+                        <div class="alert alert-success mt-3 text-center" style="border-radius: 12px;">
+                            @mensagem
+                        </div>
+                    }
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .title-estetica { color: #EAA3B5; font-weight: bold; }
+    .custom-input { border-radius: 12px; border: 1px solid #eee; padding: 12px; }
+    .btn-salvar { 
+        background: #EAA3B5; color: white; border: none; padding: 15px; 
+        border-radius: 50px; font-weight: bold; font-size: 1.1rem; transition: 0.3s;
+    }
+    .btn-salvar:hover { background: #d892a4; transform: translateY(-2px); }
+    .form-switch .form-check-input:checked {
+        background-color: #EAA3B5;
+        border-color: #EAA3B5;
+    }
+</style>
+
+@code {
+    private ConfiguracaoClinica config = new();
+    private bool carregando = true;
+    private string mensagem = "";
+
+    private TimeOnly? horaAberturaInput;
+    private TimeOnly? horaFechamentoInput;
+
+    private Dictionary<string, bool> diasSelecionados = new()
+    {
+        { "Segunda", false }, { "Terça", false }, { "Quarta", false },
+        { "Quinta", false }, { "Sexta", false }, { "Sábado", false }, { "Domingo", false }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.UsuarioLogado == null || Session.UsuarioLogado.Role != "Admin")
+        {
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        config = await ConfigService.ObterConfiguracaoAsync();
+
+        // Conversão segura de TimeSpan para TimeOnly?
+        horaAberturaInput = TimeOnly.FromTimeSpan(config.HoraAbertura);
+        horaFechamentoInput = TimeOnly.FromTimeSpan(config.HoraFechamento);
+
+        if (!string.IsNullOrEmpty(config.DiasFuncionamento))
+        {
+            // Resetamos o dicionário para garantir que dados antigos não fiquem presos
+            foreach (var key in diasSelecionados.Keys.ToList()) diasSelecionados[key] = false;
+
+            var diasSalvos = config.DiasFuncionamento.Split(',').Select(d => d.Trim());
+            foreach (var dia in diasSalvos)
+            {
+                if (diasSelecionados.ContainsKey(dia))
+                {
+                    diasSelecionados[dia] = true;
+                }
+            }
+        }
+
+        carregando = false;
+    }
+
+    private async Task SalvarConfiguracoes()
+    {
+        // Converte o TimeOnly? de volta para TimeSpan
+        config.HoraAbertura = horaAberturaInput?.ToTimeSpan() ?? TimeSpan.Zero;
+        config.HoraFechamento = horaFechamentoInput?.ToTimeSpan() ?? TimeSpan.Zero;
+
+        // Filtra apenas os dias marcados como true
+        var selecionados = diasSelecionados.Where(d => d.Value).Select(d => d.Key);
+        config.DiasFuncionamento = string.Join(", ", selecionados);
+
+        await ConfigService.SalvarConfiguracaoAsync(config);
+        
+        mensagem = "Configurações atualizadas com sucesso!";
+        
+        StateHasChanged();
+        await Task.Delay(3000);
+        mensagem = "";
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SGEI", "SGEI.csproj", "{CAA74137-9ABF-F48E-214B-B234F90306DC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CAA74137-9ABF-F48E-214B-B234F90306DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAA74137-9ABF-F48E-214B-B234F90306DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAA74137-9ABF-F48E-214B-B234F90306DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAA74137-9ABF-F48E-214B-B234F90306DC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3F4C4CFB-F15C-479D-A7E5-2FB0ADE7DFFB}
+	EndGlobalSection
+EndGlobal

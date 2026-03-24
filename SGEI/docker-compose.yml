@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  db:
+    image: mcr.microsoft.com/azure-sql-edge
+    container_name: clinica_estetica_db
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=SuaSenhaForte123!
+    ports:
+      - "1433:1433"

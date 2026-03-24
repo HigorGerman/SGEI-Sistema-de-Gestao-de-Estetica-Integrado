@@ -1,0 +1,161 @@
+@page "/admin/agenda"
+@using SGEI.Models
+@using SGEI.Services
+@using Microsoft.AspNetCore.Authorization
+@inject AgendamentoService AgendamentoService
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+<div class="container-fluid py-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="title-estetica mb-1">Gestão de Agendamentos</h3>
+            <p class="text-muted small mb-0">Monitore e gerencie os horários da clínica.</p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-white text-dark shadow-sm border px-3 py-2" style="border-radius: 10px;">
+                <i class="bi bi-calendar-event me-2 text-pink"></i> @DateTime.Now.ToString("dd/MM/yyyy")
+            </span>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0" style="border-radius: 15px;">
+        <div class="card-body p-0">
+            @if (carregando)
+            {
+                <div class="text-center p-5">
+                    <div class="spinner-border text-pink" role="status"></div>
+                </div>
+            }
+            else if (!agendamentos.Any())
+            {
+                <div class="alert alert-light text-center m-5 border-0">
+                    <i class="bi bi-calendar-x fs-2 d-block mb-3 text-muted"></i>
+                    Nenhum agendamento encontrado no sistema.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light-pink">
+                            <tr>
+                                <th class="px-4 py-3 border-0">Data e Hora</th>
+                                <th class="py-3 border-0">Cliente</th>
+                                <th class="py-3 border-0">Procedimento</th>
+                                <th class="py-3 border-0">Status</th>
+                                <th class="px-4 py-3 text-end border-0">Ações Rápidas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ag in agendamentos)
+                            {
+                                <tr>
+                                    <td class="px-4">
+                                        <div class="d-flex flex-column">
+                                            <span class="fw-bold">@ag.DataHora.ToString("dd/MM/yyyy")</span>
+                                            <span class="text-muted small">@ag.DataHora.ToString("HH:mm")</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle me-2">@ag.Cliente?.Nome?[0]</div>
+                                            <span class="fw-medium">@(ag.Cliente?.Nome ?? "N/A")</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span class="text-dark">@ag.Procedimento?.Nome</span>
+                                            <span class="text-muted small italic">@ag.Procedimento?.DuracaoMinutos min</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge-status @ObterClasseStatus(ag.Status)">
+                                            @ag.Status
+                                        </span>
+                                    </td>
+                                    <td class="px-4 text-end">
+                                        <div class="btn-group-actions">
+                                            <button class="btn-action confirm" title="Confirmar" @onclick='() => MudarStatus(ag.Id, "Confirmado")'>
+                                                <i class="bi bi-check-circle"></i>
+                                            </button>
+                                            <button class="btn-action done" title="Concluir" @onclick='() => MudarStatus(ag.Id, "Concluído")'>
+                                                <i class="bi bi-flag"></i>
+                                            </button>
+                                            <button class="btn-action cancel" title="Cancelar" @onclick='() => MudarStatus(ag.Id, "Cancelado")'>
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .text-pink { color: #EAA3B5; }
+    .title-estetica { color: #EAA3B5; font-weight: 800; }
+    .bg-light-pink { background-color: #fffafa; color: #888; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    .avatar-circle { width: 32px; height: 32px; background: #fdeff2; color: #EAA3B5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem; }
+    
+    .badge-status { padding: 6px 14px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
+    .status-pendente { background: #fff8eb; color: #f59e0b; }
+    .status-confirmado { background: #ecfdf5; color: #10b981; }
+    .status-concluido { background: #eff6ff; color: #3b82f6; }
+    .status-cancelado { background: #fef2f2; color: #ef4444; }
+
+    /* Estilo dos Botões de Ação Direta */
+    .btn-group-actions { display: flex; gap: 6px; justify-content: flex-end; }
+    .btn-action { border: none; background: #f9fafb; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: 0.2s; color: #6b7280; }
+    
+    .btn-action:hover { transform: translateY(-2px); }
+    .btn-action.confirm:hover { background: #10b981; color: white; }
+    .btn-action.done:hover { background: #3b82f6; color: white; }
+    .btn-action.cancel:hover { background: #ef4444; color: white; }
+
+    .table > :not(caption) > * > * { border-bottom-color: #f8f9fa; padding: 1rem 0.5rem; }
+</style>
+
+@code {
+    private List<Agendamento> agendamentos = new();
+    private bool carregando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // O Blazor agora usa o [Authorize] para barrar acessos, mas carregamos os dados aqui
+        await CarregarDados();
+    }
+
+    private async Task CarregarDados()
+    {
+        carregando = true;
+        // O Service já deve implementar a lógica de auto-concluir horários passados
+        agendamentos = await AgendamentoService.ListarTodosAdminAsync();
+        carregando = false;
+    }
+
+    private async Task MudarStatus(int id, string novoStatus)
+    {
+        var sucesso = await AgendamentoService.AtualizarStatusAsync(id, novoStatus);
+        if (sucesso)
+        {
+            await CarregarDados(); 
+        }
+    }
+
+    private string ObterClasseStatus(string status) => status switch
+    {
+        "Pendente" => "status-pendente",
+        "Confirmado" => "status-confirmado",
+        "Concluído" => "status-concluido",
+        "Cancelado" => "status-cancelado",
+        _ => "bg-secondary text-white"
+    };
+}

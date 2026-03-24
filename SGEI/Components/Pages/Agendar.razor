@@ -1,0 +1,232 @@
+@page "/agendar"
+@using SGEI.Models
+@using SGEI.Services
+@inject AgendamentoService AgendamentoService
+@inject ProcedimentoService ProcedimentoService
+@inject ConfiguracaoService ConfigService
+@inject UserSession Session
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<div class="container py-4">
+    <h3 class="title-estetica text-center mb-4">Novo Agendamento</h3>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 card p-4 shadow-sm border-0" style="border-radius: 20px;">
+            
+            <label class="fw-bold mb-2">O que vamos fazer hoje?</label>
+            <select class="form-select mb-4 custom-input" value="@agendamento.ProcedimentoId" @onchange="OnProcedimentoChanged">
+                <option value="0">Selecione um serviço...</option>
+                @foreach (var p in procedimentos)
+                {
+                    <option value="@p.Id">@p.Nome (@p.DuracaoMinutos min)</option>
+                }
+            </select>
+
+            <label class="fw-bold mb-2">Escolha uma data:</label>
+            <div class="d-flex overflow-auto gap-2 mb-4 pb-2 carrossel-datas">
+                @foreach (var dia in proximosDias)
+                {
+                    <button type="button" class="btn-dia @(dataEscolhida.Date == dia.Date ? "active" : "")"
+                            @onclick="() => SelecionarData(dia)">
+                        <span class="d-block fw-bold fs-5">@dia.ToString("dd/MM")</span>
+                        <span class="d-block small text-uppercase">@dia.ToString("ddd").Replace(".", "")</span>
+                    </button>
+                }
+            </div>
+
+            @if (horariosDisponiveis.Any())
+            {
+                <label class="fw-bold mb-2">Horários disponíveis:</label>
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    @foreach (var hora in horariosDisponiveis)
+                    {
+                        <button type="button" class="btn-bolha @(agendamento.DataHora.TimeOfDay == hora ? "active" : "")"
+                                @onclick="() => SelecionarHorario(hora)">
+                            @hora.ToString(@"hh\:mm")
+                        </button>
+                    }
+                </div>
+            }
+            else if (dataEscolhida != DateTime.MinValue && agendamento.ProcedimentoId != 0)
+            {
+                <div class="alert alert-warning" style="border-radius: 12px;">Não há horários disponíveis para esta data.</div>
+            }
+
+            <button type="button" class="btn-agendar-final w-100 mt-3" 
+                    disabled="@(agendamento.ProcedimentoId == 0 || dataEscolhida == DateTime.MinValue || agendamento.DataHora.Hour == 0)"
+                    @onclick="ConfirmarAgendamento">
+                Confirmar Agendamento
+            </button>
+            
+            @if (!string.IsNullOrEmpty(mensagem))
+            {
+                <div class="alert mt-3 @(mensagem.Contains("sucesso") ? "alert-success" : "alert-danger")" style="border-radius: 12px;">
+                    @mensagem
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .title-estetica { color: #EAA3B5; font-weight: bold; }
+    .custom-input { border-radius: 12px; border: 1px solid #eee; padding: 12px; }
+    
+    /* Mágica do CSS para o Carrossel Mobile */
+    .carrossel-datas {
+        -ms-overflow-style: none;  /* Esconde scrollbar no IE e Edge */
+        scrollbar-width: none;  /* Esconde scrollbar no Firefox */
+    }
+    .carrossel-datas::-webkit-scrollbar {
+        display: none; /* Esconde scrollbar no Chrome, Safari (Mac) e celular */
+    }
+    .btn-dia {
+        flex: 0 0 auto; /* Impede que o botão seja esmagado no flexbox */
+        width: 80px;
+        padding: 10px 0;
+        border: 2px solid #f0f0f0;
+        background: white;
+        color: #555;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+    .btn-dia.active {
+        border-color: #EAA3B5;
+        background: #EAA3B5;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(234, 163, 181, 0.3);
+    }
+
+    .btn-bolha { 
+        border: 2px solid #EAA3B5; background: white; color: #EAA3B5; 
+        padding: 8px 20px; border-radius: 50px; transition: 0.3s; font-weight: 500;
+    }
+    .btn-bolha.active { background: #EAA3B5; color: white; transform: scale(1.05); }
+    .btn-agendar-final { 
+        background: #EAA3B5; color: white; border: none; padding: 15px; 
+        border-radius: 50px; font-weight: bold; font-size: 1.1rem; transition: 0.3s;
+    }
+    .btn-agendar-final:disabled { background: #ccc; cursor: not-allowed; }
+</style>
+
+@code {
+    private Agendamento agendamento = new() { DataHora = DateTime.Now };
+    private List<Procedimento> procedimentos = new();
+    private List<TimeSpan> horariosDisponiveis = new();
+    private List<DateTime> proximosDias = new();
+    private DateTime dataEscolhida;
+    private string mensagem = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Trava de segurança: expulsa quem não está logado
+        if (Session.UsuarioLogado == null)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        agendamento.ClienteId = Session.UsuarioLogado.Id;
+        procedimentos = await ProcedimentoService.ListarTodosAsync();
+
+        // Gera os próximos 30 dias a partir de hoje para o carrossel
+        for (int i = 0; i < 30; i++)
+        {
+            proximosDias.Add(DateTime.Now.Date.AddDays(i));
+        }
+    }
+
+    private async Task OnProcedimentoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            agendamento.ProcedimentoId = id;
+            if (dataEscolhida != DateTime.MinValue) 
+            {
+                await GerarGradeHorarios();
+            }
+        }
+    }
+
+    private async Task SelecionarData(DateTime data)
+    {
+        dataEscolhida = data;
+        // Zera a hora para não herdar cliques anteriores
+        agendamento.DataHora = dataEscolhida; 
+        await GerarGradeHorarios();
+    }
+
+    private async Task GerarGradeHorarios()
+    {
+        horariosDisponiveis.Clear();
+        var config = await ConfigService.ObterConfiguracaoAsync();
+        var proc = procedimentos.FirstOrDefault(p => p.Id == agendamento.ProcedimentoId);
+
+        if (proc == null || dataEscolhida == DateTime.MinValue) return;
+
+        // Vai no banco e pega os agendamentos REAIS que já estão ocupando espaço
+        var agendamentosDoDia = await AgendamentoService.ObterAgendamentosDoDiaAsync(dataEscolhida);
+
+        var horaAtual = config.HoraAbertura;
+        var agora = DateTime.Now;
+        var intervaloDaGrade = TimeSpan.FromMinutes(30); 
+
+        while (horaAtual.Add(TimeSpan.FromMinutes(proc.DuracaoMinutos)) <= config.HoraFechamento)
+        {
+            // 1. Não mostra horas do passado se for hoje
+            bool horarioJaPassou = dataEscolhida.Date == agora.Date && horaAtual <= agora.TimeOfDay;
+
+            // 2. Trava de Colisão: verifica se essa bolha bate em algo já salvo
+            var inicioBolha = dataEscolhida.Date.Add(horaAtual);
+            var fimBolha = inicioBolha.AddMinutes(proc.DuracaoMinutos);
+            
+            bool horarioOcupado = agendamentosDoDia.Any(a => 
+                inicioBolha < a.DataHora.AddMinutes(a.Procedimento!.DuracaoMinutos) && 
+                fimBolha > a.DataHora
+            );
+
+            // Se o horário está livre de problemas, cria a bolha
+            if (!horarioJaPassou && !horarioOcupado)
+            {
+                horariosDisponiveis.Add(horaAtual);
+            }
+
+            horaAtual = horaAtual.Add(intervaloDaGrade); 
+        }
+        
+        StateHasChanged(); 
+    }
+
+    private void SelecionarHorario(TimeSpan hora)
+    {
+        agendamento.DataHora = dataEscolhida.Date.Add(hora);
+    }
+
+    private async Task ConfirmarAgendamento()
+    {
+        var resultado = await AgendamentoService.CriarAgendamentoAsync(agendamento);
+        
+        if (resultado == "Sucesso")
+        {
+            mensagem = "✅ Agendamento concluído com sucesso!";
+            
+            // "Reseta" a tela para a pessoa poder marcar outro serviço imediatamente
+            agendamento = new Agendamento { ClienteId = Session.UsuarioLogado.Id, DataHora = DateTime.Now, ProcedimentoId = 0 };
+            dataEscolhida = DateTime.MinValue;
+            horariosDisponiveis.Clear();
+                
+            StateHasChanged();
+            
+            // Faz a mensagem verde sumir depois de 3 segundos
+            await Task.Delay(3000);
+            mensagem = "";
+            StateHasChanged();
+        }
+        else
+        {
+            mensagem = resultado;
+        }
+    }
+}

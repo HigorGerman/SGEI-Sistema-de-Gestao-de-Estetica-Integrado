@@ -1,0 +1,36 @@
+﻿@page "/"
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<div class="hero-minimal">
+    <div class="content-box">
+        <h1 class="title">Estética <br><span>Renovada</span></h1>
+        <button class="cta-button" @onclick='() => Nav.NavigateTo("/agendar")'>
+            Marcar Horário <i class="bi bi-arrow-right-short"></i>
+        </button>
+    </div>
+    
+    <div class="image-section">
+        <img src="https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=800" alt="Clinica" />
+    </div>
+</div>
+
+<style>
+    .hero-minimal { display: flex; flex-direction: column; align-items: center; gap: 2rem; padding-top: 2rem; }
+    
+    .content-box { text-align: center; }
+    .title { font-size: 2.8rem; font-weight: 800; line-height: 1; color: #222; margin-bottom: 1.5rem; }
+    .title span { color: #EAA3B5; }
+
+    .cta-button { 
+        background: #111; color: white; border: none; padding: 14px 30px; 
+        border-radius: 12px; font-weight: 600; font-size: 1rem; transition: 0.3s;
+    }
+    .cta-button:hover { background: #EAA3B5; transform: scale(1.05); }
+
+    .image-section img { 
+        width: 100%; max-width: 350px; border-radius: 24px; 
+        filter: grayscale(20%); transition: 0.5s; 
+    }
+    .image-section img:hover { filter: grayscale(0%); transform: rotate(-1deg); }
+</style>
